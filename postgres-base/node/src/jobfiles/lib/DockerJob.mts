@@ -43,19 +43,19 @@ export default class DockerJobDefinition implements IJob {
       // Dockerコマンド実行
       // execではなく、spawnを用いることでパイプやリダイレクトを使えなくしている
       // また、spawnはコマンドの実行結果をストリームで取得することができる
-      const execJob = spawn(
-        "docker",
-        [
-          "run",
-          "--rm",
-          "--name",
-          this.name,
-          "-m",
-          this.memory.toString() + "m",
-          "--cpus=" + this.cpu,
-          this.image,
-        ].concat(this.cmd)
-      );
+      const command = "docker";
+      const args = [
+        "run",
+        "--rm",
+        "--name",
+        this.name,
+        "-m",
+        this.memory.toString() + "m",
+        "--cpus=" + this.cpu,
+        this.image,
+      ];
+      console.log("ExecCommand: " + command + " [" + args + "]");
+      const execJob = spawn(command, args.concat(this.cmd));
 
       // 終了時のコールバック
       execJob.on("close", (code: any) => {

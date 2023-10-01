@@ -38,6 +38,7 @@ export default class BashJobDefinition implements IJob {
       // コマンド実行
       // execではなく、spawnを用いることでパイプやリダイレクトを使えなくしている
       // また、spawnはコマンドの実行結果をストリームで取得することができる
+      console.log("ExecCommand: " + this.cmd + " [" + this.args + "]");
       this.execJob = spawn(this.cmd, this.args);
 
       // 終了時のコールバック

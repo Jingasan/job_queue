@@ -1,7 +1,8 @@
 import express, { Request, Response, NextFunction } from "express";
 import Queue from "better-queue";
-import JobState from "./jobState.mjs";
+import { scheduleJob } from "node-schedule";
 import { randomUUID } from "crypto";
+import JobState from "./jobState.mjs";
 
 // 環境変数の取得
 const env = {
@@ -9,8 +10,7 @@ const env = {
     timeout: Number(process.env.NODE_JOB_TIMEOUT) * 1000,
     concurrent: Number(process.env.NODE_JOB_CONCURRENT),
     maxQueueingSize: Number(process.env.NODE_JOB_MAX_QUEUEING_SIZE),
-    logLevel: String(process.env.NODE_JOB_LOG_LEVEL),
-    jobTableName: String(process.env.NODE_JOBQUEUE_TABLE_NAME),
+    jobStateRetentionPeriod: Number(process.env.NODE_JOBSTATE_RETENTION_PERIOD),
   },
   db: {
     host: String(process.env.DB_SERVER_HOST),
@@ -26,6 +26,12 @@ const jobCancelFuncs: { [key: string]: () => void } = {};
 
 // ジョブステータステーブルの初期作成処理
 JobState.createTable();
+
+// 古いジョブステータスの削除(CRONで毎時0分0秒に実行)
+const cron = scheduleJob("0 0 * * * *", async () => {
+  console.log("[INFO] CRON: Delete old job state");
+  await JobState.deleteOldState(env.job.jobStateRetentionPeriod);
+});
 
 // ジョブ処理用のキュー
 const jobQueue = new Queue(
@@ -78,7 +84,7 @@ const jobQueue = new Queue(
       username: env.db.user,
       password: env.db.password,
       dbname: env.db.dbname,
-      tableName: env.job.jobTableName,
+      tableName: "jobqueue",
     },
   }
 );

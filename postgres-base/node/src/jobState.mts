@@ -1,13 +1,10 @@
 import knex from "knex";
+import * as DateFns from "date-fns";
 
 // ジョブの状態を更新するクラス
 class JobState {
   // 環境変数の取得
   private static env = {
-    job: {
-      queueTableName: String(process.env.NODE_JOBQUEUE_TABLE_NAME),
-      stateTableName: String(process.env.NODE_JOBSTATE_TABLE_NAME),
-    },
     db: {
       host: String(process.env.DB_SERVER_HOST),
       port: Number(process.env.DB_SERVER_PORT),
@@ -17,6 +14,13 @@ class JobState {
     },
   };
 
+  // テーブル設定
+  private static job = {
+    queueTableName: "jobqueue", // ジョブキュー用テーブル
+    stateTableName: "jobstate", // ジョブ状態用管理テーブル
+  };
+
+  // DB接続設定
   private static db = knex({
     client: "pg",
     connection: {
@@ -44,109 +48,141 @@ class JobState {
 
   /**
    * ジョブステータス用のテーブル作成
-   * @returns
+   * @returns true:正常終了/false:エラー
    */
-  static async createTable() {
+  static async createTable(): Promise<boolean> {
     return JobState.db.schema
-      .hasTable(JobState.env.job.stateTableName)
-      .then((exists: boolean) => {
+      .hasTable(JobState.job.stateTableName)
+      .then(async (exists: boolean): Promise<boolean> => {
         // テーブルが存在しない場合は作成
         if (!exists) {
           console.log(
-            `Create JobStatusTable '${JobState.env.job.stateTableName}'.`
+            `Create JobStatusTable '${JobState.job.stateTableName}'.`
           );
-          return JobState.db.schema.createTable(
-            JobState.env.job.stateTableName,
-            (table) => {
+          return JobState.db.schema
+            .createTable(JobState.job.stateTableName, (table) => {
               table.text("id");
               table.text("state");
               table.datetime("submit_datetime");
               table.datetime("update_datetime");
               table.text("result");
-            }
-          );
+            })
+            .then(() => {
+              return true;
+            })
+            .catch((e) => {
+              return false;
+            });
         } else {
           console.log(
-            `JobStatusTable '${JobState.env.job.stateTableName}' already exists.`
+            `JobStatusTable '${JobState.job.stateTableName}' already exists.`
           );
+          return true;
         }
+      })
+      .catch((e) => {
+        console.error(e);
+        return false;
       });
   }
 
   /**
    * ジョブを登録状態に設定する。
    * @param id ジョブID
-   * @returns DB操作実行のPromise
+   * @returns true:正常終了/false:エラー
    */
-  static async setSubmit(id: string) {
-    const now = JobState.db.fn.now();
-    return JobState.db(JobState.env.job.stateTableName)
+  static async setSubmit(id: string): Promise<boolean> {
+    const now = new Date().toISOString();
+    return JobState.db(JobState.job.stateTableName)
       .insert({
         id: id,
         state: JobState.State.SUBMITTED,
         submit_datetime: now,
         update_datetime: now,
       })
-      .then(() => {});
+      .then(() => {
+        return true;
+      })
+      .catch((e) => {
+        console.error(e);
+        return false;
+      });
   }
 
   /**
    * ジョブを実行状態に設定する。
    * @param id ジョブID
-   * @returns DB操作実行のPromise
+   * @returns true:正常終了/false:エラー
    */
-  static async setRunning(id: string) {
-    return JobState.db(JobState.env.job.stateTableName)
+  static async setRunning(id: string): Promise<boolean> {
+    return JobState.db(JobState.job.stateTableName)
       .where("id", "=", id)
       .update({
         state: JobState.State.RUNNING,
-        update_datetime: JobState.db.fn.now(),
+        update_datetime: new Date().toISOString(),
       })
-      .then(() => {});
+      .then(() => {
+        return true;
+      })
+      .catch((e) => {
+        console.error(e);
+        return false;
+      });
   }
 
   /**
    * ジョブを成功状態に設定する。
    * @param id ジョブID
    * @param result 実行結果
-   * @returns DB操作実行のPromise
+   * @returns true:正常終了/false:エラー
    */
-  static async setSuccess(id: string, result: string) {
-    return JobState.db(JobState.env.job.stateTableName)
+  static async setSuccess(id: string, result: string): Promise<boolean> {
+    return JobState.db(JobState.job.stateTableName)
       .where("id", "=", id)
       .update({
         state: JobState.State.SUCCEEDED,
         result: result,
-        update_datetime: JobState.db.fn.now(),
+        update_datetime: new Date().toISOString(),
       })
-      .then(() => {});
+      .then(() => {
+        return true;
+      })
+      .catch((e) => {
+        console.error(e);
+        return false;
+      });
   }
 
   /**
    * ジョブを失敗状態に設定する。
    * @param id ジョブID
    * @param result 実行結果
-   * @returns DB操作実行のPromise
+   * @returns true:正常終了/false:エラー
    */
-  static async setFailed(id: string, result: string) {
-    return JobState.db(JobState.env.job.stateTableName)
+  static async setFailed(id: string, result: string): Promise<boolean> {
+    return JobState.db(JobState.job.stateTableName)
       .where("id", "=", id)
       .update({
         state: JobState.State.FAILED,
         result: result,
-        update_datetime: JobState.db.fn.now(),
+        update_datetime: new Date().toISOString(),
       })
-      .then(() => {});
+      .then(() => {
+        return true;
+      })
+      .catch((e) => {
+        console.error(e);
+        return false;
+      });
   }
 
   /**
    * ジョブの状態を取得する。
    * @param id
-   * @param callback
-   * @returns DB操作実行のPromise
+   * @returns ジョブ状態
    */
-  static async getState(id: string) {
-    return JobState.db(JobState.env.job.stateTableName)
+  static async getState(id: string): Promise<any> {
+    return JobState.db(JobState.job.stateTableName)
       .where("id", "=", id)
       .select("state")
       .then((rec) => {
@@ -154,19 +190,48 @@ class JobState {
           return null;
         }
         return rec[0].state;
+      })
+      .catch((e) => {
+        console.error(e);
+        return false;
       });
   }
 
   /**
-   * キューイングされているタスクの数を取得する。
-   * @param callback
-   * @returns DB操作実行のPromise
+   * ジョブの状態を削除する
+   * @param retentionPeriod
+   * @returns true:正常終了/false:エラー
    */
-  static async getQueueingTaskNum() {
-    return JobState.db(JobState.env.job.queueTableName)
+  static async deleteOldState(retentionPeriodDay: number): Promise<boolean> {
+    return JobState.db(JobState.job.stateTableName)
+      .where(
+        "update_datetime",
+        "<=",
+        DateFns.subDays(Date.now(), retentionPeriodDay).toISOString()
+      )
+      .del()
+      .then(() => {
+        return true;
+      })
+      .catch((e) => {
+        console.error(e);
+        return false;
+      });
+  }
+
+  /**
+   * キューイングされているジョブ数を取得する。
+   * @returns キューイングジョブ数
+   */
+  static async getQueueingTaskNum(): Promise<number> {
+    return JobState.db(JobState.job.queueTableName)
       .count({ count: "*" })
       .then((rec) => {
         return Number(rec[0].count);
+      })
+      .catch((e) => {
+        console.error(e);
+        return 0;
       });
   }
 }
