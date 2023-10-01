@@ -72,13 +72,8 @@ const jobQueue = new Queue(
     // キュー保存先
     store: {
       type: "sql",
-      dialect: "postgres",
-      host: env.db.host,
-      port: env.db.port,
-      username: env.db.user,
-      password: env.db.password,
-      dbname: env.db.dbname,
-      tableName: env.job.jobTableName,
+      dialect: "sqlite",
+      path: "db/sqlite.db",
     },
   }
 );
