@@ -1,0 +1,82 @@
+version: "3.9"
+services:
+  #-------------------------------------------------------
+  # Node API Server
+  #-------------------------------------------------------
+  api-server:
+    container_name: api-server # 起動後のコンテナ名
+    image: $NODE_CONTAINER_IMAGE # 起動対象のコンテナイメージ名
+    build:
+      context: ./
+      dockerfile: Dockerfile
+      args:
+        - HTTP_PROXY=$HTTP_PROXY
+        - http_proxy=$http_proxy
+        - HTTPS_PROXY=$HTTPS_PROXY
+        - https_proxy=$https_proxy
+    ports: # ポート番号のマッピング
+      - "$NODE_API_SERVER_PORT:$NODE_API_SERVER_PORT"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock # DooDの設定
+    env_file: # 環境設定ファイルの読み込み
+      - .env
+    depends_on: # コンテナ起動順の制御
+      - db-server
+    deploy:
+      mode: replicated
+      replicas: 1 # 起動コンテナ数
+      placement:
+        max_replicas_per_node: 1
+      resources:
+        limits: # リソース量上限
+          cpus: $NODE_API_CONTAINER_MAX_CPU # CPUコア数上限
+          memory: $NODE_API_CONTAINER_MAX_MEMORY # メモリ量上限
+        reservations: # 必須リソース量
+          cpus: $NODE_API_CONTAINER_MIN_CPU # 必須CPUコア数
+          memory: $NODE_API_CONTAINER_MIN_MEMORY # 必須メモリ量
+    restart: always # 再起動条件：常に
+    tty: true
+    networks:
+      backend:
+        ipv4_address: $NODE_API_CONTAINER_IPV4 # コンテナのIPアドレス
+  #-------------------------------------------------------
+  # DB Server
+  #-------------------------------------------------------
+  db-server:
+    container_name: db-server # 起動後のコンテナ名
+    image: $DB_CONTAINER_IMAGE # 起動対象のコンテナイメージ名
+    platform: linux/amd64
+    ports: # ポート番号のマッピング
+      - "$DB_SERVER_PORT:$DB_SERVER_PORT"
+    volumes: # ボリュームのアタッチ
+      - ./db/data:/var/lib/postgresql/data # DBデータ
+      - ./db/initsql:/docker-entrypoint-initdb.d # DBの起動時に実行するSQLファイル
+    env_file: # 環境設定ファイルの読み込み
+      - .env
+    deploy:
+      mode: replicated
+      replicas: 1 # 起動コンテナ数
+      placement:
+        max_replicas_per_node: 1
+      resources:
+        limits: # リソース量上限
+          cpus: $DB_CONTAINER_MAX_CPU # CPUコア数上限
+          memory: $DB_CONTAINER_MAX_MEMORY # メモリ量上限
+        reservations: # 必須リソース量
+          cpus: $DB_CONTAINER_MIN_CPU # 必須CPUコア数
+          memory: $DB_CONTAINER_MIN_MEMORY # 必須メモリ量
+    restart: always # 再起動条件：常に
+    tty: true
+    networks:
+      backend:
+        ipv4_address: $DB_CONTAINER_IPV4 # コンテナのIPアドレス
+#-------------------------------------------------------
+# Docker Network Config
+#-------------------------------------------------------
+networks:
+  backend:
+    driver: bridge # ネットワークタイプ
+    name: $NETWORK_NAME # Dockerネットワーク名
+    ipam:
+      config:
+        - subnet: $SUBNET # サブネット
