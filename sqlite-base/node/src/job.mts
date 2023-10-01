@@ -12,13 +12,6 @@ const env = {
     logLevel: String(process.env.NODE_JOB_LOG_LEVEL),
     jobTableName: String(process.env.NODE_JOBQUEUE_TABLE_NAME),
   },
-  db: {
-    host: String(process.env.DB_SERVER_HOST),
-    port: Number(process.env.DB_SERVER_PORT),
-    user: String(process.env.POSTGRES_USER),
-    password: String(process.env.POSTGRES_PASSWORD),
-    dbname: String(process.env.POSTGRES_DB),
-  },
 };
 
 // 実行中ジョブのキャンセルコールバックを保持する連想配列

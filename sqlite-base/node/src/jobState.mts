@@ -8,13 +8,6 @@ class JobState {
       queueTableName: String(process.env.NODE_JOBQUEUE_TABLE_NAME),
       stateTableName: String(process.env.NODE_JOBSTATE_TABLE_NAME),
     },
-    db: {
-      host: String(process.env.DB_SERVER_HOST),
-      port: Number(process.env.DB_SERVER_PORT),
-      user: String(process.env.POSTGRES_USER),
-      password: String(process.env.POSTGRES_PASSWORD),
-      dbname: String(process.env.POSTGRES_DB),
-    },
   };
 
   private static db = knex({
