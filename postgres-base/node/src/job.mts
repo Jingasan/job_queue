@@ -91,7 +91,7 @@ const jobQueue = new Queue(
 
 // ジョブ完了時の処理
 jobQueue.on("task_finish", (id: string, result: object, stats: object) => {
-  console.log("Job has finished with " + result.toString());
+  console.log(`JobID '${id}' has finished with ${result.toString()}`);
   // ジョブステータスをSUCCESSに変更
   JobState.setSuccess(id, result.toString());
   // キャンセルを解放
@@ -100,7 +100,7 @@ jobQueue.on("task_finish", (id: string, result: object, stats: object) => {
 
 // ジョブ失敗時の処理
 jobQueue.on("task_failed", (id: string, result: object, stats: object) => {
-  console.log("Job has failed with " + result.toString());
+  console.log(`JobID '${id}' has finished with ${result.toString()}`);
   // ジョブステータスをFAILEDに変更
   JobState.setFailed(id, result.toString());
   // タイムアウト、キャンセルの場合はキャンセル処理を実行
